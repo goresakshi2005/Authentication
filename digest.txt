@@ -1,0 +1,415 @@
+Directory structure:
+└── Firebase Authentication/
+    ├── package.json
+    └── src/
+        ├── App.jsx
+        ├── index.jsx
+        ├── components/
+        │   ├── auth/
+        │   │   ├── AuthProvider.jsx
+        │   │   ├── Login.jsx
+        │   │   └── Signup.jsx
+        │   └── protected/
+        │       └── ProtectedRoute.jsx
+        ├── firebase/
+        │   ├── auth.js
+        │   └── config.js
+        └── pages/
+            └── Dashboard.jsx
+
+================================================
+FILE: package.json
+================================================
+{
+  "dependencies": {
+    "firebase": "^12.0.0",
+    "react-router-dom": "^6.30.1"
+  }
+}
+
+
+
+================================================
+FILE: src/App.jsx
+================================================
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './components/auth/AuthProvider';
+import Login from './components/auth/Login';
+import Signup from './components/auth/Signup';
+import Dashboard from './pages/Dashboard';
+import ProtectedRoute from './components/protected/ProtectedRoute';
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          {/* Redirect root to login */}
+          <Route path="/" element={<Login />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
+  );
+}
+
+export default App;
+
+
+================================================
+FILE: src/index.jsx
+================================================
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+
+================================================
+FILE: src/components/auth/AuthProvider.jsx
+================================================
+
+// src/components/auth/AuthProvider.jsx
+
+import { createContext, useContext, useEffect, useState } from 'react';
+import { onAuthStateChanged } from "firebase/auth"; // <--- CORRECT: Import from the firebase library
+import { auth } from '../../firebase/auth'; // <--- CORRECT: Go up two directories
+
+
+const AuthContext = createContext();
+
+export function AuthProvider({ children }) {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const value = {
+    currentUser,
+    loading
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  return useContext(AuthContext);
+}
+
+
+================================================
+FILE: src/components/auth/Login.jsx
+================================================
+import { useState, useEffect } from 'react'; // Add useEffect
+import { useAuth } from './AuthProvider';
+import { loginWithEmailAndPassword, signInWithGoogle } from '../../firebase/auth';
+import { useNavigate } from 'react-router-dom';
+
+
+
+function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await loginWithEmailAndPassword(email, password);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  useEffect(() => {
+  if (currentUser) {
+    navigate('/dashboard');
+  }
+}, [currentUser, navigate]);
+
+  return (
+    <div>
+      <h2>Login</h2>
+      {error && <div style={{ color: 'red' }}>{error}</div>}
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label>Email:</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label>Password:</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit">Login</button>
+      </form>
+      <div>
+        <button onClick={handleGoogleSignIn}>Sign in with Google</button>
+      </div>
+    </div>
+  );
+}
+
+export default Login;
+
+
+================================================
+FILE: src/components/auth/Signup.jsx
+================================================
+import { useState, useEffect } from 'react'; // Add useEffect
+import { useAuth } from './AuthProvider';
+import { registerWithEmailAndPassword, signInWithGoogle } from '../../firebase/auth';
+import { useNavigate } from 'react-router-dom';
+
+function Signup() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await registerWithEmailAndPassword(email, password);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  useEffect(() => {
+  if (currentUser) {
+    navigate('/dashboard');
+  }
+}, [currentUser, navigate]);
+
+  return (
+    <div>
+      <h2>Sign Up</h2>
+      {error && <div style={{ color: 'red' }}>{error}</div>}
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label>Email:</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label>Password:</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit">Sign Up</button>
+      </form>
+      <div>
+        <button onClick={handleGoogleSignIn}>Sign up with Google</button>
+      </div>
+    </div>
+  );
+}
+
+export default Signup;
+
+
+================================================
+FILE: src/components/protected/ProtectedRoute.jsx
+================================================
+import { useAuth } from '../auth/AuthProvider';
+import { Navigate } from 'react-router-dom';
+
+function ProtectedRoute({ children }) {
+  const { currentUser } = useAuth();
+
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
+export default ProtectedRoute;
+
+
+================================================
+FILE: src/firebase/auth.js
+================================================
+import { getAuth, 
+         createUserWithEmailAndPassword, 
+         signInWithEmailAndPassword,
+         GoogleAuthProvider,
+         signInWithPopup,
+         signOut } from "firebase/auth";
+import app from "./config";
+
+// Now this can be imported by other files
+export const auth = getAuth(app);
+
+// Email/Password Authentication
+export const registerWithEmailAndPassword = async (email, password) => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const loginWithEmailAndPassword = async (email, password) => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Google Authentication
+const googleProvider = new GoogleAuthProvider();
+
+export const signInWithGoogle = async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Sign out
+export const logout = async () => {
+  try {
+    await signOut(auth);
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Get current user
+export const getCurrentUser = () => {
+  return auth.currentUser;
+};
+
+
+================================================
+FILE: src/firebase/config.js
+================================================
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+
+const firebaseConfig = {
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Initialize Analytics only in client-side environment
+let analytics;
+if (typeof window !== 'undefined') {
+  analytics = getAnalytics(app);
+}
+
+export { app, analytics };
+
+
+================================================
+FILE: src/pages/Dashboard.jsx
+================================================
+import { useAuth } from '../components/auth/AuthProvider';
+import { logout } from '../firebase/auth';
+import { useNavigate } from 'react-router-dom';
+
+function Dashboard() {
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>Welcome, {currentUser?.email}</p>
+      <button onClick={handleLogout}>Logout</button>
+    </div>
+  );
+}
+
+export default Dashboard;
+
